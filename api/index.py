@@ -286,7 +286,12 @@ def get_data():
 # adjoining Oakland Oceanic FIR. Everything else on the international feed
 # (Auckland, Tahiti, Vancouver, etc.) is too far away to be operationally
 # useful here, per the actual scope of this tool.
-RELEVANT_FIR_IDS = {"PGZU", "KZAK"}
+#
+# Narrowed to Guam's own FIR for now: the georeferenced map is being built
+# to cover only 0-30N/130-165E, which doesn't reach Oakland Oceanic's area
+# -- a KZAK SIGMET wouldn't be reachable on a map cropped to that box. Add
+# "KZAK" back here (and widen the map's coverage) if that's needed later.
+RELEVANT_FIR_IDS = {"PGZU"}
 
 
 @app.route("/api/sigmets")
