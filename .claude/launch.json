@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ce-pirep-geochart",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["api/index.py"],
+      "port": 5003
+    }
+  ]
+}

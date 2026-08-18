@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+.vercel
+scratch/
+api/static/map_tiles/
