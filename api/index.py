@@ -2,9 +2,20 @@ import os
 import re
 import requests
 from datetime import datetime, timezone
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__, template_folder="../api/templates")
+
+
+@app.errorhandler(404)
+def debug_404(e):
+    return jsonify({
+        "path": request.path,
+        "environ_PATH_INFO": request.environ.get("PATH_INFO"),
+        "environ_SCRIPT_NAME": request.environ.get("SCRIPT_NAME"),
+        "url": request.url,
+        "registered_rules": [str(r) for r in app.url_map.iter_rules()],
+    }), 404
 
 # ==========================================
 # 🛑 AWC SECURITY HEADERS
