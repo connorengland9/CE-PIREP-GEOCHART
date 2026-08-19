@@ -753,17 +753,28 @@
         // polygons plot directly from their own lat/lon -- no pixel-space
         // calibration hack needed. /api/sigmets already filters to ZUA
         // (Guam FIR) and Oakland Oceanic, the only ones relevant here.
+        // Tracks the currently-drawn SIGMET layer so each refresh replaces
+        // it instead of stacking a new copy on top -- without this, a
+        // SIGMET still active across multiple 5-minute refreshes got its
+        // (semi-transparent) polygon redrawn again each time, compounding
+        // the fill opacity and making it look progressively darker the
+        // longer the page stayed open.
+        var sigmetLayer = null;
+
         function loadSigmets(map) {
             fetch('/api/sigmets')
                 .then(res => res.json())
                 .then(data => {
                     if (!data.features) return;
-                    L.geoJSON(data, {
+                    if (sigmetLayer) {
+                        map.removeLayer(sigmetLayer);
+                    }
+                    sigmetLayer = L.geoJSON(data, {
                         style: {
                             color: '#ef4444',
                             weight: 1.5,
                             fillColor: '#ef4444',
-                            fillOpacity: 0.06,
+                            fillOpacity: 0.12,
                             dashArray: '4, 4'
                         },
                         onEachFeature: function (feature, layer) {
