@@ -781,59 +781,42 @@
         }
 
         // --- MAP INITIALIZATION ---
-        // INTERIM: flat (non-georeferenced) tiles -- same L.CRS.Simple
-        // pixel-grid approach the previous chart used, just with the new,
-        // more detailed source chart. No real lat/lon here, so the SIGMET
-        // overlay is disabled for now (see loadSigmets(), not called
-        // below). Once the QGIS-georeferenced version replaces
-        // map_tiles_flat with a real EPSG:3857 pyramid, switch this block
-        // back to the geographic CRS version and re-enable loadSigmets().
+        // Real geographic CRS (Leaflet's default EPSG:3857) using the
+        // MapTiler-georeferenced tile pyramid -- TPS-warped from 78
+        // hand-placed control points at the chart's own grid intersections,
+        // covering 0-30N/130-165E. SIGMET overlay is real now: polygons
+        // plot directly from their own lat/lon, no pixel-space hack needed.
         document.addEventListener('DOMContentLoaded', function() {
-            var FLAT_IMAGE_WIDTH = 8909;
-            var FLAT_IMAGE_HEIGHT = 6209;
-            var FLAT_MAX_ZOOM = 6;
-
-            // minZoom raised so it can't zoom out past a useful regional
-            // view; maxZoom extended past the tile pyramid's native
-            // resolution (maxNativeZoom) so Leaflet keeps letting you zoom
-            // in further, upscaling the deepest available tiles instead of
-            // stopping.
-            var map = L.map('map', {
-                crs: L.CRS.Simple,
-                minZoom: 2,
-                maxZoom: 9,
-                wheelDebounceTime: 40,
-                attributionControl: false
-            });
-
-            var bounds = new L.LatLngBounds(
-                map.unproject([0, FLAT_IMAGE_HEIGHT], FLAT_MAX_ZOOM),
-                map.unproject([FLAT_IMAGE_WIDTH, 0], FLAT_MAX_ZOOM)
+            var MIN_ZOOM = 2;
+            var MAX_ZOOM = 8;
+            // From map_tiles/metadata.json: [west, south, east, north]
+            var bounds = L.latLngBounds(
+                [-15.51440598, 113.26354049],
+                [48.36321684, 180.00000000]
             );
 
-            L.tileLayer('/static/map_tiles_flat/{z}/{x}/{y}.png', {
-                minZoom: 2,
-                maxZoom: 9,
-                maxNativeZoom: FLAT_MAX_ZOOM,
+            var map = L.map('map', {
+                minZoom: MIN_ZOOM,
+                maxZoom: MAX_ZOOM,
+                wheelDebounceTime: 40,
+                attributionControl: false
+            }).setView([13.48, 144.79], 7); // Guam
+
+            L.tileLayer('/static/map_tiles/{z}/{x}/{y}.png', {
+                minZoom: MIN_ZOOM,
+                maxZoom: MAX_ZOOM,
                 noWrap: true,
                 bounds: bounds
             }).addTo(map);
 
-            map.setMaxBounds(bounds);
-
-            // Open centered on Guam rather than the whole chart's
-            // geometric center (which sits out in open ocean) -- Guam's
-            // pixel position in the full 8909x6209 raster, from the same
-            // 0.38/0.29 page-fraction used when we first located it.
-            var guamPoint = map.unproject([0.38 * FLAT_IMAGE_WIDTH, 0.29 * FLAT_IMAGE_HEIGHT], FLAT_MAX_ZOOM);
-            map.setView(guamPoint, 4);
+            loadSigmets(map);
+            setInterval(() => loadSigmets(map), 300000);
 
             // The map container's real size isn't always settled yet at
             // DOMContentLoaded (flex layout, async Tailwind CDN parsing),
             // so Leaflet can measure it too small on first paint.
             setTimeout(function() {
                 map.invalidateSize();
-                map.setView(guamPoint, 4);
             }, 300);
 
             window.addEventListener('resize', function() {

@@ -3,4 +3,3 @@ __pycache__/
 .env
 .vercel
 scratch/
-api/static/map_tiles/

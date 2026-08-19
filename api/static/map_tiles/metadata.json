@@ -1,0 +1,13 @@
+{
+  "name": "GEO",
+  "version": "1.1.0",
+  "description": "",
+  "attribution": "<a href=\"https://www.maptiler.com/engine/\">Rendered with MapTiler Engine</a>",
+  "type": "overlay",
+  "format": "png",
+  "minzoom": "2",
+  "maxzoom": "8",
+  "scale": "1.000000",
+  "bounds": [113.26354049, -15.51440598, 180.00000000, 48.36321684],
+  "profile": "mercator"
+}
