@@ -300,11 +300,46 @@ def get_data():
 MAP_BOUNDS = {"south": 0.0, "north": 30.0, "west": 130.0, "east": 165.0}
 
 
-def sigmet_in_map_bounds(coords):
-    lats = [c["lat"] for c in coords]
-    lons = [c["lon"] for c in coords]
+def normalize_sigmet_rings(coords):
+    """AWC's isigmet coords come in two shapes depending on "geom": "AREA"
+    is a flat list of {lat,lon} points (one ring); "AREAS" is a list of
+    such rings (multi-polygon). Individual points can also carry a null
+    lat/lon. Returns a list of rings, each a list of [lon, lat] pairs with
+    at least 3 valid points, dropping anything malformed."""
+    if not coords:
+        return []
+    raw_rings = coords if isinstance(coords[0], list) else [coords]
+
+    rings = []
+    for raw_ring in raw_rings:
+        ring = [[c["lon"], c["lat"]] for c in raw_ring
+                if isinstance(c, dict) and c.get("lon") is not None and c.get("lat") is not None]
+        if len(ring) < 3:
+            continue
+        if ring[0] != ring[-1]:
+            ring.append(ring[0])
+        rings.append(ring)
+    return rings
+
+
+def sigmet_in_map_bounds(rings):
+    lats = [pt[1] for ring in rings for pt in ring]
+    lons = [pt[0] for ring in rings for pt in ring]
+    if not lats:
+        return False
     return (max(lats) >= MAP_BOUNDS["south"] and min(lats) <= MAP_BOUNDS["north"] and
             max(lons) >= MAP_BOUNDS["west"] and min(lons) <= MAP_BOUNDS["east"])
+
+
+def sigmet_is_current(s):
+    """AWC's isigmet feed includes SIGMETs well past their validTimeTo --
+    without this, expired hazards stack up on the map indefinitely,
+    overlapping into darker patches instead of aging out."""
+    valid_to = s.get("validTimeTo")
+    if valid_to is None:
+        return True
+    now = datetime.now(timezone.utc).timestamp()
+    return now <= valid_to
 
 
 @app.route("/api/sigmets")
@@ -321,17 +356,18 @@ def get_sigmets():
 
         features = []
         for s in data:
-            coords = s.get("coords") or []
-            if len(coords) < 3 or not sigmet_in_map_bounds(coords):
+            rings = normalize_sigmet_rings(s.get("coords"))
+            if not rings or not sigmet_in_map_bounds(rings) or not sigmet_is_current(s):
                 continue
 
-            ring = [[c["lon"], c["lat"]] for c in coords]
-            if ring[0] != ring[-1]:
-                ring.append(ring[0])
+            if len(rings) == 1:
+                geometry = {"type": "Polygon", "coordinates": [rings[0]]}
+            else:
+                geometry = {"type": "MultiPolygon", "coordinates": [[r] for r in rings]}
 
             features.append({
                 "type": "Feature",
-                "geometry": {"type": "Polygon", "coordinates": [ring]},
+                "geometry": geometry,
                 "properties": {
                     "firId": s.get("firId"),
                     "firName": s.get("firName"),
