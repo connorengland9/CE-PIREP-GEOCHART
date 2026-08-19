@@ -282,16 +282,29 @@ def get_data():
             "pireps": []
         })
 
-# SIGMETs relevant to a ZUA (Guam CERAP) controller: Guam's own FIR plus the
-# adjoining Oakland Oceanic FIR. Everything else on the international feed
-# (Auckland, Tahiti, Vancouver, etc.) is too far away to be operationally
-# useful here, per the actual scope of this tool.
+# SIGMETs relevant to a ZUA (Guam CERAP) controller. Filtering by firId
+# doesn't work: Oakland Oceanic (KZAK) is a huge FIR whose territory comes
+# right up against/over parts of the ZUA area, so a real KZAK SIGMET can sit
+# squarely inside the map's coverage while a PGZU-only filter drops it
+# entirely (confirmed live: a KZAK SIGMET at N15/E142-N18/E155 was invisible
+# under the old FIR-based filter despite being well inside the chart).
+# Filtering by whether the SIGMET's own geometry overlaps the map's actual
+# coverage area is what the map needs, regardless of which FIR issued it.
 #
-# Narrowed to Guam's own FIR for now: the georeferenced map is being built
-# to cover only 0-30N/130-165E, which doesn't reach Oakland Oceanic's area
-# -- a KZAK SIGMET wouldn't be reachable on a map cropped to that box. Add
-# "KZAK" back here (and widen the map's coverage) if that's needed later.
-RELEVANT_FIR_IDS = {"PGZU"}
+# Uses the actual operational box (0-30N/130-165E) rather than the tile
+# pyramid's padded bounds from metadata.json -- that padded box is the
+# axis-aligned bounding rectangle of the *rotated* chart image, so it
+# extends well past the real coverage area (into Indonesia, Vietnam, Hong
+# Kong, Russia, Taiwan) with no actual chart content there. Filtering
+# against it pulled in SIGMETs from FIRs nowhere near Guam.
+MAP_BOUNDS = {"south": 0.0, "north": 30.0, "west": 130.0, "east": 165.0}
+
+
+def sigmet_in_map_bounds(coords):
+    lats = [c["lat"] for c in coords]
+    lons = [c["lon"] for c in coords]
+    return (max(lats) >= MAP_BOUNDS["south"] and min(lats) <= MAP_BOUNDS["north"] and
+            max(lons) >= MAP_BOUNDS["west"] and min(lons) <= MAP_BOUNDS["east"])
 
 
 @app.route("/api/sigmets")
@@ -308,10 +321,8 @@ def get_sigmets():
 
         features = []
         for s in data:
-            if s.get("firId") not in RELEVANT_FIR_IDS:
-                continue
             coords = s.get("coords") or []
-            if len(coords) < 3:
+            if len(coords) < 3 or not sigmet_in_map_bounds(coords):
                 continue
 
             ring = [[c["lon"], c["lat"]] for c in coords]
