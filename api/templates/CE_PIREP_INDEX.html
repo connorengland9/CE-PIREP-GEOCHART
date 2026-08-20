@@ -76,6 +76,27 @@
         /* SIGMET POPUP STYLING */
         .leaflet-popup-content-wrapper { background-color: #0f172a; color: white; border: 1px solid #ef4444; border-radius: 8px; }
         .leaflet-popup-tip { background-color: #ef4444; }
+
+        /* SIGMET LABEL (e.g. "YANKEE 3") -- a solid badge rather than bare
+           outlined text (the first version, plain text with a white
+           outline, disappeared into the chart's own fix labels once
+           zoomed in). Small footprint, but high-contrast enough to read at
+           a glance over dense chart detail. */
+        .sigmet-label {
+            background: #7f1d1d;
+            border: 1px solid #fca5a5;
+            border-radius: 4px;
+            padding: 1px 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            pointer-events: none;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            color: #ffffff;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+        }
+        .sigmet-label::before { display: none; }
     </style>
 </head>
 <body class="h-screen flex flex-col justify-between overflow-hidden">
@@ -771,10 +792,10 @@
                     }
                     sigmetLayer = L.geoJSON(data, {
                         style: {
-                            color: '#ef4444',
-                            weight: 1.5,
-                            fillColor: '#ef4444',
-                            fillOpacity: 0.12,
+                            color: '#b91c1c',
+                            weight: 2,
+                            fillColor: '#dc2626',
+                            fillOpacity: 0.2,
                             dashArray: '4, 4'
                         },
                         onEachFeature: function (feature, layer) {
@@ -785,6 +806,17 @@
                                 `<div class="font-mono text-[10px] text-white leading-relaxed w-64 uppercase tracking-wide">` +
                                 `<b class="text-red-400 text-sm border-b border-red-500/30 pb-1 mb-2 block">${hazard} WARNING</b>${raw}</div>`
                             );
+                            // Bounding-box center rather than a true polygon
+                            // centroid -- close enough for identifying which
+                            // SIGMET is which at a glance, and Leaflet has
+                            // no built-in true-centroid helper.
+                            if (p.label) {
+                                layer.bindTooltip(p.label, {
+                                    permanent: true,
+                                    direction: 'center',
+                                    className: 'sigmet-label'
+                                });
+                            }
                         }
                     }).addTo(map);
                 })
@@ -825,13 +857,19 @@
 
             // The map container's real size isn't always settled yet at
             // DOMContentLoaded (flex layout, async Tailwind CDN parsing),
-            // so Leaflet can measure it too small on first paint.
+            // so Leaflet can measure it too small on first paint. Also
+            // where minZoom gets tightened to bounds' own fit -- doing
+            // this before invalidateSize would compute against the wrong
+            // (too-small) container size. Without this, the map can be
+            // zoomed out far enough to reveal blank space beyond the chart.
             setTimeout(function() {
                 map.invalidateSize();
+                map.setMinZoom(map.getBoundsZoom(bounds));
             }, 300);
 
             window.addEventListener('resize', function() {
                 map.invalidateSize();
+                map.setMinZoom(map.getBoundsZoom(bounds));
             });
         });
 

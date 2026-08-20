@@ -331,6 +331,21 @@ def sigmet_in_map_bounds(rings):
             max(lons) >= MAP_BOUNDS["west"] and min(lons) <= MAP_BOUNDS["east"])
 
 
+SIGMET_LABEL_RE = re.compile(r'\bSIGMET\s+(.+?)\s+VALID\b')
+
+
+def sigmet_label(raw_sigmet):
+    """The series designator AWC prints between "SIGMET" and "VALID" on the
+    raw bulletin's second line -- e.g. "KZAK SIGMET PAPA 29 VALID..." -> the
+    map label "PAPA 29". Not every FIR uses the phonetic-word format (some
+    are just a bare number like "1" or "T01"); whatever's there is still a
+    short, distinct label."""
+    if not raw_sigmet:
+        return None
+    m = SIGMET_LABEL_RE.search(raw_sigmet.upper())
+    return m.group(1) if m else None
+
+
 def sigmet_is_current(s):
     """AWC's isigmet feed includes SIGMETs well past their validTimeTo --
     without this, expired hazards stack up on the map indefinitely,
@@ -378,6 +393,7 @@ def get_sigmets():
                     "validTimeFrom": s.get("validTimeFrom"),
                     "validTimeTo": s.get("validTimeTo"),
                     "rawSigmet": s.get("rawSigmet"),
+                    "label": sigmet_label(s.get("rawSigmet")),
                 }
             })
 
